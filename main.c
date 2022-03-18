@@ -133,7 +133,32 @@ unsigned int read_exports(Section *section, char *bytecode, Export **exports) {
     return exports_count;
 }
 
-unsigned int read_functions(Section **sections, int sections_len, unsigned char *bytecode, Function **functions) {
+unsigned int find_function_body(Section *code_section, char *bytecode, unsigned int function_idx) {
+    unsigned int offset = code_section->offset;
+
+    unsigned int function_count = 0;
+    offset += read_u32(bytecode, offset, &function_count);
+
+    for(int i = 0; i < function_count; i++) {
+        printf("finding body size, offset is 0x%2x\n", offset);
+        unsigned int body_size = 0;
+        offset += read_u32(bytecode, offset, &body_size);
+
+        if (i == function_idx) {
+            return offset;
+        }
+
+        printf("read body size, offset is 0x%2x, body size is %d\n", offset, body_size);
+        offset += body_size;
+        printf("added body size to offset, offset is 0x%2x\n", offset);
+    }
+
+    // TODO: throw error
+
+    return 0;
+}
+
+unsigned int read_functions(Section *sections, int sections_len, char *bytecode, Function **functions) {
     printf("reading functions\n");
 
 
@@ -141,7 +166,7 @@ unsigned int read_functions(Section **sections, int sections_len, unsigned char 
     Section *code_section = NULL;
 
     for(int i = 0; i < sections_len; i++) {
-        Section *section = &(*sections)[i];
+        Section *section = &sections[i];
 
         if(section->id == SECTION_ID_FUNCTIONS) {
             functions_section = section;
@@ -164,13 +189,14 @@ unsigned int read_functions(Section **sections, int sections_len, unsigned char 
    
     *functions = (Function*)malloc(sizeof(Function) * functions_count);
     
-    for(unsigned int i = 0; i < functions_count; i++) {
+    for(unsigned int function_idx = 0; function_idx < functions_count; function_idx++) {
         unsigned int type_idx;
         offset += read_u32(bytecode, offset, &type_idx);
 
-        (*functions)[i].type_idx = type_idx;
+        (*functions)[function_idx].type_idx = type_idx;
+        (*functions)[function_idx].offset = find_function_body(code_section, bytecode, function_idx);
 
-        printf("read function: type idx %d\n", type_idx);
+        printf("read function: type idx %d, offset 0x%2x\n", type_idx, (*functions)[function_idx].offset);
     }
 
     return functions_count;
@@ -191,7 +217,7 @@ Module* read_module(char *bytecode, unsigned int bytecode_len) {
         if(section.id == SECTION_ID_EXPORTS) {
             module->exports_len = read_exports(&section, bytecode, &module->exports);
         } else if(section.id == SECTION_ID_FUNCTIONS) {
-            module->functions_len = read_functions(&section, bytecode, &module->functions);
+            module->functions_len = read_functions(sections, sections_len, bytecode, &module->functions);
         }
     }
 
