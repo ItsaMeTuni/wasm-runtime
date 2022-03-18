@@ -133,9 +133,29 @@ unsigned int read_exports(Section *section, char *bytecode, Export **exports) {
     return exports_count;
 }
 
-unsigned int read_functions(Section *section, unsigned char *bytecode, Function **functions) {
+unsigned int read_functions(Section **sections, int sections_len, unsigned char *bytecode, Function **functions) {
     printf("reading functions\n");
-    unsigned int offset = section->offset;
+
+
+    Section *functions_section = NULL;
+    Section *code_section = NULL;
+
+    for(int i = 0; i < sections_len; i++) {
+        Section *section = &(*sections)[i];
+
+        if(section->id == SECTION_ID_FUNCTIONS) {
+            functions_section = section;
+        } else if (section->id == SECTION_ID_CODE) {
+            code_section = section;
+        }
+    }
+
+    if(functions_section == NULL || code_section == NULL) {
+        // TODO: throw error
+    }
+
+
+    unsigned int offset = functions_section->offset;
 
     unsigned int functions_count = 0;
     offset += read_u32(bytecode, offset, &functions_count);
