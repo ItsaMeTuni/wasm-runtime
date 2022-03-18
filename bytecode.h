@@ -29,3 +29,4 @@ typedef struct {
 } Module;
 
 Module* read_module(char *bytecode, unsigned int bytecode_len);
+unsigned int read_u32(char *bytecode, unsigned int offset, unsigned int* out);
