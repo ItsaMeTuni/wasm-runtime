@@ -8,6 +8,13 @@
 #define TRUE 1
 #define FALSE 0
 
+#define EXPORT_TYPE_FUNCTION 0
+
+#define SECTION_ID_EXPORTS 7
+#define SECTION_ID_FUNCTIONS 3
+#define SECTION_ID_CODE 10
+#define SECTION_ID_TYPES 1
+
 typedef char bool;
 
 typedef struct {
@@ -17,7 +24,6 @@ typedef struct {
 } Section;
 
 typedef struct {
-    unsigned int idx;
     unsigned int offset;
     unsigned int type_idx;
 } Function;
@@ -98,7 +104,7 @@ unsigned short read_sections(char *bytecode, unsigned int bytecode_len, Section*
     return section_index;
 }
 
-Export* read_exports(Section *section, char *bytecode) {
+unsigned int read_exports(Section *section, char *bytecode, Export **exports) {
     printf("reading exports\n");
     unsigned int offset = section->offset;
 
@@ -107,9 +113,9 @@ Export* read_exports(Section *section, char *bytecode) {
 
     printf("%d exports found\n", exports_count);
    
-    Export *exports = (Export*)malloc(sizeof(Export) * exports_count);
+    *exports = (Export*)malloc(sizeof(Export) * exports_count);
 
-    for(int i = 0; i < exports_count; i++) {
+    for(unsigned int i = 0; i < exports_count; i++) {
         char *name;
         offset += read_string(bytecode, offset, &name);
 
@@ -119,12 +125,35 @@ Export* read_exports(Section *section, char *bytecode) {
         unsigned int exportee_idx;
         offset += read_u32(bytecode, offset, &exportee_idx);
 
-        exports[i] = (Export){ .name = name, .type = type, .exportee_idx = exportee_idx };
+        (*exports)[i] = (Export){ .name = name, .type = type, .exportee_idx = exportee_idx };
 
         printf("read export: name '%s', type 0x%02x, exportee index %d\n", name, type, exportee_idx);
     } 
 
-    return exports;
+    return exports_count;
+}
+
+unsigned int read_functions(Section *section, unsigned char *bytecode, Function **functions) {
+    printf("reading functions\n");
+    unsigned int offset = section->offset;
+
+    unsigned int functions_count = 0;
+    offset += read_u32(bytecode, offset, &functions_count);
+
+    printf("%d functions found\n", functions_count);
+   
+    *functions = (Function*)malloc(sizeof(Function) * functions_count);
+    
+    for(unsigned int i = 0; i < functions_count; i++) {
+        unsigned int type_idx;
+        offset += read_u32(bytecode, offset, &type_idx);
+
+        (*functions)[i].type_idx = type_idx;
+
+        printf("read function: type idx %d\n", type_idx);
+    }
+
+    return functions_count;
 }
 
 Module* read_module(char *bytecode, unsigned int bytecode_len) {
@@ -139,8 +168,10 @@ Module* read_module(char *bytecode, unsigned int bytecode_len) {
         
         printf("reading section %d of id %d\n", i, section.id);
 
-        if(section.id == 7) {
-            module->exports = read_exports(&section, bytecode);
+        if(section.id == SECTION_ID_EXPORTS) {
+            module->exports_len = read_exports(&section, bytecode, &module->exports);
+        } else if(section.id == SECTION_ID_FUNCTIONS) {
+            module->functions_len = read_functions(&section, bytecode, &module->functions);
         }
     }
 
