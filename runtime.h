@@ -1,0 +1,60 @@
+#ifndef _RUNTIME_H
+#define _RUNTIME_H
+#include "bytecode.h"
+
+#define INSTRUCTION_NOP 0x0
+#define INSTRUCTION_CONST_I32 0x41
+#define INSTRUCTION_CONST_I64 0x42
+#define INSTRUCTION_LOCAL_GET 0x20
+#define INSTRUCTION_I32_ADD 0x6A
+
+#define ITEM_TYPE_VALUE 0
+#define ITEM_TYPE_LABEL 1
+#define ITEM_TYPE_FRAME 2
+
+#define VALUE_TYPE_I32 0
+#define VALUE_TYPE_I64 1
+
+typedef struct {
+    short type;
+    union {
+        unsigned int i32;
+        unsigned long i64;
+    } value;
+} Value;
+
+typedef struct {
+    unsigned int arity;
+    unsigned int offset;
+} Label;
+
+typedef struct {
+    Value *locals;
+    unsigned int locals_len;
+    unsigned int function_arity;
+} Frame;
+
+typedef struct {
+    char type;
+    union {
+        Value value;
+        Label label;
+        Frame frame;
+    } item;
+} Item;
+
+typedef struct {
+    Item* stack;
+    unsigned int stack_len;
+
+    unsigned int next_instr_offset;
+
+    Module *module;
+} Store;
+
+void step(Store *store);
+Store make_store(Module *module);
+void invoke(Store *store, char *export_name);
+void print_stack(Store *Store);
+
+#endif

@@ -1,3 +1,5 @@
+#ifndef _BYTECODE_H
+#define _BYTECODE_H
 typedef struct {
     char id;
     unsigned int offset;
@@ -30,3 +32,5 @@ typedef struct {
 
 Module* read_module(char *bytecode, unsigned int bytecode_len);
 unsigned int read_u32(char *bytecode, unsigned int offset, unsigned int* out);
+
+#endif

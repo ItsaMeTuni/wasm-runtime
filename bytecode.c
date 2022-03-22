@@ -1,4 +1,8 @@
 #include "bytecode.h"
+
+#include "stdlib.h"
+#include "stdio.h"
+#include <string.h>
 #include "common.h"
 
 #define SECTION_ID_EXPORTS 7
@@ -34,7 +38,9 @@ unsigned int read_string(char *bytecode, unsigned int offset, char** out) {
     unsigned int len = 0;
     bytes_read += read_u32(bytecode, offset, &len);
     
-    *out = &bytecode[offset + bytes_read];
+    *out = malloc(sizeof(char) * (len + 1));
+    memcpy(*out, &bytecode[offset + bytes_read], sizeof(char) * len);
+    (*out)[len] = '\0';
 
     return bytes_read + len;
 }
@@ -186,6 +192,8 @@ Module* read_module(char *bytecode, unsigned int bytecode_len) {
     }
 
     free(sections);
+
+    return module;
 }
 
 

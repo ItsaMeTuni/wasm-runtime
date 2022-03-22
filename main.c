@@ -6,6 +6,7 @@
 #include <stdio.h>
 
 #include "bytecode.h"
+#include "runtime.h"
 
 int main() {
    
@@ -25,8 +26,15 @@ int main() {
     printf("\n");
 
     Module* module = read_module(data, len);
-    //printf("module:\n");
+    Store store = make_store(module);
 
+    invoke(&store, "main");
+    step(&store);
+    step(&store);
+    step(&store);
+    print_stack(&store);
+
+    //printf("module:\n");
 
     //printf("sections:\n");
     //for(int i = 0; i < section_count; i++) {
