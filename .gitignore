@@ -1,3 +1,5 @@
 /build
 *.wasm
 /.ccls-cache
+/cmake-build-debug
+/.idea

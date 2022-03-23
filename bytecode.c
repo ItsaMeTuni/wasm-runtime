@@ -126,9 +126,47 @@ unsigned int find_function_body(Section *code_section, char *bytecode, unsigned 
     return 0;
 }
 
+unsigned int read_types(Section *section, char *bytecode, Type **types) {
+    printf("reading types\n");
+
+    unsigned int offset = section->offset;
+
+    unsigned int types_len = 0;
+    offset += read_u32(bytecode, offset, &types_len);
+
+    *types = malloc(sizeof(Type) * types_len);
+
+    for(unsigned int type_idx = 0; type_idx < types_len; type_idx++) {
+        char type_code = bytecode[offset];
+        if(type_code != TYPE_FUNCTION) {
+            continue;
+        }
+
+        unsigned int params_len = 0;
+        offset += read_u32(bytecode, offset, &params_len);
+
+        char *params = malloc(sizeof(char) * params_len);
+        for(unsigned int param_idx = 0; param_idx < params_len; param_idx++) {
+            params[param_idx] = bytecode[offset];
+        }
+
+        unsigned int results_len = 0;
+        offset += read_u32(bytecode, offset, &results_len);
+
+        char *results = malloc(sizeof(char) * results_len);
+        for(unsigned int result_idx = 0; result_idx < results_len; result_idx++) {
+            results[result_idx] = bytecode[offset];
+        }
+
+        Type type = (Type) { .params = params, .params_len = params_len, .results = results, .results_len = results_len };
+        (*types)[type_idx] = type;
+    }
+
+    return types_len;
+}
+
 unsigned int read_functions(Section *sections, int sections_len, char *bytecode, Function **functions) {
     printf("reading functions\n");
-
 
     Section *functions_section = NULL;
     Section *code_section = NULL;
@@ -188,6 +226,8 @@ Module* read_module(char *bytecode, unsigned int bytecode_len) {
             module->exports_len = read_exports(&section, bytecode, &module->exports);
         } else if(section.id == SECTION_ID_FUNCTIONS) {
             module->functions_len = read_functions(sections, sections_len, bytecode, &module->functions);
+        } else if(section.id == SECTION_ID_TYPES) {
+            module->types_len = read_types(&section, bytecode, &module->types);
         }
     }
 

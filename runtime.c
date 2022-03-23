@@ -15,27 +15,15 @@ Item stack_pop(Store *store) {
     return store->stack[store->stack_len];
 }
 
-Frame* get_current_frame(Store *store) {
-    for(unsigned int i = 0; i < store->stack_len; i++) {
-        Item *item = &store->stack[i];
-
-        if(item->type == ITEM_TYPE_FRAME) {
-            return &item->item.frame;
-        }
-    }
-
-    // raise error
-
-    return NULL;
-}
-
 void step(Store *store) {
-    char instr = store->module->bytecode[store->next_instr_offset]; 
-    store->next_instr_offset++;
+    unsigned int *offset = &store->current_frame->next_instr_offset;
+
+    char instr = store->module->bytecode[*offset];
+    (*offset)++;
 
     char *bytecode = store->module->bytecode;
 
-    printf("processing instruction 0x%02x\n", instr);
+    printf("processing instruction 0x%02x (offset 0x%02x)\n", instr, *offset);
 
     if(instr == INSTRUCTION_NOP) {
         return;
@@ -43,7 +31,7 @@ void step(Store *store) {
     } else if (instr == INSTRUCTION_CONST_I32) {
         // The const value is a u32 following the const.i32 instruction
         unsigned int u32_value = 0;
-        store->next_instr_offset += read_u32(bytecode, store->next_instr_offset, &u32_value);
+        *offset += read_u32(bytecode, *offset, &u32_value);
         
         // Push the u32 to the stack
         stack_push(store, (Item) { .type = ITEM_TYPE_VALUE, .item = (Value) { .type = VALUE_TYPE_I32, .value = u32_value } });
@@ -51,11 +39,10 @@ void step(Store *store) {
     } else if (instr == INSTRUCTION_LOCAL_GET) {
         // The local's index is a u32 following the local.get instruction
         unsigned int local_idx = 0;
-        store->next_instr_offset += read_u32(bytecode, store->next_instr_offset, &local_idx);
+        *offset += read_u32(bytecode, *offset, &local_idx);
 
         // Get the local from the current frame by it's index
-        Frame *current_frame = get_current_frame(store);
-        Value *local = &current_frame->locals[local_idx];
+        Value *local = &store->current_frame->locals[local_idx];
 
         // push local to stack
         stack_push(store, (Item) { .type = ITEM_TYPE_VALUE, .item = { .value = *local } });
@@ -67,6 +54,11 @@ void step(Store *store) {
         Item result_item = (Item) { .type = ITEM_TYPE_VALUE, .item = (Value) { .type = VALUE_TYPE_I32, .value = { .i32 = result } } };
 
         stack_push(store, result_item);
+    } else if (instr == INSTRUCTION_CALL) {
+        unsigned int function_idx = 0;
+        *offset += read_u32(bytecode, *offset, &function_idx);
+
+        invoke(store, function_idx);
     }
 }
 
@@ -74,18 +66,30 @@ Store make_store(Module *module) {
     return (Store) {
         .stack = malloc(sizeof(Module) * 1024),
         .stack_len = 0,
-        .next_instr_offset = -1,
         .module = module
     };
 }
 
-void invoke(Store *store, char *export_name) {
-    for(unsigned int export_idx = 0; export_idx < store->module->exports_len; export_idx++) {
-        Export *export = &store->module->exports[export_idx];
-        if(strcmp(export->name, export_name) == 0) {
-            store->next_instr_offset = store->module->functions[export->exportee_idx].offset;
-        }
+void invoke(Store *store, unsigned int function_idx) {
+    Function *fn = &store->module->functions[function_idx];
+    Frame frame = (Frame) { .next_instr_offset = fn->offset };
+    Item item = (Item) { .type = ITEM_TYPE_FRAME, .item = { .frame = frame }};
+
+    Type *fn_type = &store->module->types[fn->type_idx];
+
+
+    // TODO: allocate space for locals
+    frame.locals = malloc(sizeof(Value) * fn_type->params_len);
+    printf("hat\n");
+
+    for(unsigned int param_idx = 0; param_idx < fn_type->params_len; param_idx++) {
+        printf("hat %d %d\n", param_idx, fn_type->params_len);
+        frame.locals[param_idx] = stack_pop(store).item.value;
     }
+
+    stack_push(store, item);
+
+    store->current_frame = &store->stack[store->stack_len - 1].item.frame;
 }
 
 void print_item(Item *item) {
@@ -94,7 +98,7 @@ void print_item(Item *item) {
     } else if (item->type == ITEM_TYPE_LABEL) {
         printf("Label\n");
     } else if (item->type == ITEM_TYPE_VALUE) {
-        printf("Value\n");
+        printf("Value %d\n", item->item.value.value.i32);
     }
 }
 

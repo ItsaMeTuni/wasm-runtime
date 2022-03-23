@@ -1,5 +1,12 @@
 #ifndef _BYTECODE_H
 #define _BYTECODE_H
+
+#define TYPE_NUMBER_I32 0x7f
+#define TYPE_NUMBER_I64 0x7E
+#define TYPE_NUMBER_F32 0x7D
+#define TYPE_NUMBER_F64 0x7C
+#define TYPE_FUNCTION 0x60
+
 typedef struct {
     char id;
     unsigned int offset;
@@ -20,11 +27,22 @@ typedef struct {
 } Export;
 
 typedef struct {
-    Function* functions;
+    char *params;
+    unsigned int params_len;
+
+    char *results;
+    unsigned int results_len;
+} Type;
+
+typedef struct {
+    Function *functions;
     unsigned int functions_len;
 
-    Export* exports;
+    Export *exports;
     unsigned int exports_len;
+
+    Type *types;
+    unsigned int types_len;
 
     char *bytecode;
     unsigned int bytecode_len;

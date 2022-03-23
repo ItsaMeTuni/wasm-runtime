@@ -28,10 +28,18 @@ int main() {
     Module* module = read_module(data, len);
     Store store = make_store(module);
 
-    invoke(&store, "main");
-    step(&store);
-    step(&store);
-    step(&store);
+    printf("a\n");
+
+
+
+    invoke(&store, 0);
+
+    printf("hello\n");
+
+    for(int i = 0; i < 8; i++) {
+        step(&store);
+    }
+
     print_stack(&store);
 
     //printf("module:\n");

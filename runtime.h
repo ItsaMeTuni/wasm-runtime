@@ -7,6 +7,7 @@
 #define INSTRUCTION_CONST_I64 0x42
 #define INSTRUCTION_LOCAL_GET 0x20
 #define INSTRUCTION_I32_ADD 0x6A
+#define INSTRUCTION_CALL 0x10
 
 #define ITEM_TYPE_VALUE 0
 #define ITEM_TYPE_LABEL 1
@@ -32,6 +33,7 @@ typedef struct {
     Value *locals;
     unsigned int locals_len;
     unsigned int function_arity;
+    unsigned int next_instr_offset;
 } Frame;
 
 typedef struct {
@@ -47,14 +49,14 @@ typedef struct {
     Item* stack;
     unsigned int stack_len;
 
-    unsigned int next_instr_offset;
+    Frame *current_frame;
 
     Module *module;
 } Store;
 
 void step(Store *store);
 Store make_store(Module *module);
-void invoke(Store *store, char *export_name);
+void invoke(Store *store, unsigned int function_idx);
 void print_stack(Store *Store);
 
 #endif
