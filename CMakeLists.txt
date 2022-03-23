@@ -1,14 +1,14 @@
 cmake_minimum_required(VERSION 3.21)
-project(wasm_runtime C)
+project(wasm_runtime CXX)
 
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 23)
 
 include_directories(.)
 
 add_executable(wasm_runtime
-        bytecode.c
+        bytecode.cpp
         bytecode.h
         common.h
-        main.c
+        main.cpp
         runtime.c
-        runtime.h)
+        runtime.h ModuleParser.cpp ModuleParser.h Module.h)

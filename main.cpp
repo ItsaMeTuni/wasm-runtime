@@ -12,7 +12,7 @@ int main() {
    
     int fd = open("code.wasm", O_RDONLY);
     int len = lseek(fd, 0, SEEK_END);
-    char *data = mmap(NULL, len, PROT_READ, MAP_PRIVATE, fd, 0);
+    char *data = (char*)mmap(NULL, len, PROT_READ, MAP_PRIVATE, fd, 0);
     
     printf("successfully read file\n");
 

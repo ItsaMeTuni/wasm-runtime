@@ -1,56 +1,42 @@
-#include "bytecode.h"
+//
+// Created by lucas on 3/23/22.
+//
 
-#include "stdlib.h"
-#include "stdio.h"
-#include <string.h>
-#include "common.h"
+#include "ModuleParser.h"
 
-#define SECTION_ID_EXPORTS 7
-#define SECTION_ID_FUNCTIONS 3
-#define SECTION_ID_CODE 10
-#define SECTION_ID_TYPES 1
+Module ModuleParser::parse(std::unique_ptr<Bytecode> bytecode) {
+    Module module = Module();
+    module.bytecode = std::move(bytecode);
 
-// Read a u32 (in LEB128 format).
-// out: the output value
-// returns: amount of bytes that were read
-unsigned int read_u32(char *bytecode, unsigned int offset, unsigned int* out) {
-    *out = 0;
-    short bytes_processed = 0;
-    bool has_next_byte = TRUE;
+    std::vector<Section> sections = read_sections(bytecode);
 
-    while (has_next_byte) {
-        char byte = bytecode[offset + bytes_processed];
 
-        char zeroed_msb = (byte & 0b01111111);
-        unsigned int padded = zeroed_msb << (bytes_processed * 7);
-        *out |= padded;
+    for(int i = 0; i < sections_len; i++) {
+        Section section = sections[i];
 
-        has_next_byte = (byte & 0b10000000) != 0; 
-        bytes_processed++;
-    } 
+        printf("reading section %d of id %d\n", i, section.id);
 
-    return bytes_processed;
+        if(section.id == SECTION_ID_EXPORTS) {
+            module->exports_len = read_exports(&section, bytecode, &module->exports);
+        } else if(section.id == SECTION_ID_FUNCTIONS) {
+            module->functions_len = read_functions(sections, sections_len, bytecode, &module->functions);
+        } else if(section.id == SECTION_ID_TYPES) {
+            module->types_len = read_types(&section, bytecode, &module->types);
+        }
+    }
+
+    free(sections);
+
+    return module;
+    return Module();
 }
 
-unsigned int read_string(char *bytecode, unsigned int offset, char** out) {
-    unsigned int bytes_read = 0;
-
-    unsigned int len = 0;
-    bytes_read += read_u32(bytecode, offset, &len);
-    
-    *out = malloc(sizeof(char) * (len + 1));
-    memcpy(*out, &bytecode[offset + bytes_read], sizeof(char) * len);
-    (*out)[len] = '\0';
-
-    return bytes_read + len;
-}
-
-unsigned short read_sections(char *bytecode, unsigned int bytecode_len, Section* sections[]) {
+std::vector<Section> read_sections(char *bytecode, unsigned int bytecode_len, Section* sections[]) {
     // start at ninth byte in order to skip magic number and version
     // (first 8 bytes)
     unsigned int offset = 8;
 
-    *sections = malloc(sizeof(Section) * 10);
+    *sections = (Section*)malloc(sizeof(Section) * 10);
     unsigned char section_index = 0;
 
     while(offset < bytecode_len) {
@@ -63,7 +49,7 @@ unsigned short read_sections(char *bytecode, unsigned int bytecode_len, Section*
 
         (*sections)[section_index] = (Section){ .id = section_id, .offset = offset, .length = section_size };
         offset += section_size;
-        
+
         section_index++;
         //printf("create section %d %d %d\n", section_id, offset, section_size);
     }
@@ -71,6 +57,9 @@ unsigned short read_sections(char *bytecode, unsigned int bytecode_len, Section*
     // return length of sections array
     return section_index;
 }
+
+/*
+
 
 unsigned int read_exports(Section *section, char *bytecode, Export **exports) {
     printf("reading exports\n");
@@ -80,7 +69,7 @@ unsigned int read_exports(Section *section, char *bytecode, Export **exports) {
     offset += read_u32(bytecode, offset, &exports_count);
 
     printf("%d exports found\n", exports_count);
-   
+
     *exports = (Export*)malloc(sizeof(Export) * exports_count);
 
     for(unsigned int i = 0; i < exports_count; i++) {
@@ -89,14 +78,14 @@ unsigned int read_exports(Section *section, char *bytecode, Export **exports) {
 
         char type = bytecode[offset];
         offset++;
-        
+
         unsigned int exportee_idx;
         offset += read_u32(bytecode, offset, &exportee_idx);
 
         (*exports)[i] = (Export){ .name = name, .type = type, .exportee_idx = exportee_idx };
 
         printf("read export: name '%s', type 0x%02x, exportee index %d\n", name, type, exportee_idx);
-    } 
+    }
 
     return exports_count;
 }
@@ -192,9 +181,9 @@ unsigned int read_functions(Section *sections, int sections_len, char *bytecode,
     offset += read_u32(bytecode, offset, &functions_count);
 
     printf("%d functions found\n", functions_count);
-   
+
     *functions = (Function*)malloc(sizeof(Function) * functions_count);
-    
+
     for(unsigned int function_idx = 0; function_idx < functions_count; function_idx++) {
         unsigned int type_idx;
         offset += read_u32(bytecode, offset, &type_idx);
@@ -219,7 +208,7 @@ Module* read_module(char *bytecode, unsigned int bytecode_len) {
 
     for(int i = 0; i < sections_len; i++) {
         Section section = sections[i];
-        
+
         printf("reading section %d of id %d\n", i, section.id);
 
         if(section.id == SECTION_ID_EXPORTS) {
@@ -235,5 +224,4 @@ Module* read_module(char *bytecode, unsigned int bytecode_len) {
 
     return module;
 }
-
-
+*/
