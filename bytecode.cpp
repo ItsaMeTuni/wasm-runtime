@@ -47,3 +47,27 @@ std::string Bytecode::read_string(u32 &offset) {
     return str;
 }
 
+unsigned long Bytecode::size() {
+    return bytecode.size();
+}
+
+char Bytecode::at(unsigned int offset) {
+    return bytecode[offset];
+}
+
+template<typename T>
+std::vector<T> Bytecode::read_vector(T (Bytecode::* reader)(u32 &), u32& offset) {
+    std::vector<T> out;
+
+    u32 len = read_u32(offset);
+    for(u32 i = 0; i < len; i++) {
+        out.push_back(reader(offset));
+    }
+
+    return out;
+}
+
+char Bytecode::read_char(u32& offset) {
+    return at(offset++);
+}
+

@@ -3,111 +3,92 @@
 //
 
 #include "ModuleParser.h"
+#include <algorithm>
 
-Module ModuleParser::parse(std::unique_ptr<Bytecode> bytecode) {
+Module ModuleParser::parse() {
     Module module = Module();
-    module.bytecode = std::move(bytecode);
+    module.bytecode = bytecode;
 
-    std::vector<Section> sections = read_sections(bytecode);
+    std::vector<Section> sections = read_sections();
 
-
-    for(int i = 0; i < sections_len; i++) {
-        Section section = sections[i];
+    for(int i = 0; i < sections.size(); i++) {
+        Section& section = sections.at(i);
 
         printf("reading section %d of id %d\n", i, section.id);
 
         if(section.id == SECTION_ID_EXPORTS) {
-            module->exports_len = read_exports(&section, bytecode, &module->exports);
+            module.exports = read_exports(section);
         } else if(section.id == SECTION_ID_FUNCTIONS) {
-            module->functions_len = read_functions(sections, sections_len, bytecode, &module->functions);
+            module.functions = read_functions(sections);
         } else if(section.id == SECTION_ID_TYPES) {
-            module->types_len = read_types(&section, bytecode, &module->types);
+            module.types = read_types(section);
         }
     }
 
-    free(sections);
-
     return module;
-    return Module();
 }
 
-std::vector<Section> read_sections(char *bytecode, unsigned int bytecode_len, Section* sections[]) {
+std::vector<Section> ModuleParser::read_sections() {
     // start at ninth byte in order to skip magic number and version
     // (first 8 bytes)
-    unsigned int offset = 8;
+    u32 offset = 8;
 
-    *sections = (Section*)malloc(sizeof(Section) * 10);
-    unsigned char section_index = 0;
+    std::vector<Section> sections;
 
-    while(offset < bytecode_len) {
+    while(offset < bytecode->size()) {
         char section_id = bytecode[offset];
         offset++;
 
-        unsigned int section_size = 0;
-        offset += read_u32(bytecode, offset, &section_size);
-        //printf("section size %d\n", section_size);
+        u32 section_size = bytecode->read_u32(offset);
 
-        (*sections)[section_index] = (Section){ .id = section_id, .offset = offset, .length = section_size };
+        Section section = { .id = section_id, .offset = offset, .length = section_size };
+        sections.push_back(section);
+
         offset += section_size;
-
-        section_index++;
-        //printf("create section %d %d %d\n", section_id, offset, section_size);
     }
 
-    // return length of sections array
-    return section_index;
+    return sections;
 }
 
-/*
+std::vector<Export> ModuleParser::read_exports(Section& section) {
+    u32 offset = section.offset;
 
-
-unsigned int read_exports(Section *section, char *bytecode, Export **exports) {
-    printf("reading exports\n");
-    unsigned int offset = section->offset;
-
-    unsigned int exports_count = 0;
-    offset += read_u32(bytecode, offset, &exports_count);
+    u32 exports_count = bytecode->read_u32(offset);
 
     printf("%d exports found\n", exports_count);
 
-    *exports = (Export*)malloc(sizeof(Export) * exports_count);
+    std::vector<Export> exports;
 
-    for(unsigned int i = 0; i < exports_count; i++) {
-        char *name;
-        offset += read_string(bytecode, offset, &name);
+    for(u32 i = 0; i < exports_count; i++) {
+        std::string name = bytecode->read_string(offset);
 
-        char type = bytecode[offset];
+        char type = bytecode->at(offset);
         offset++;
 
-        unsigned int exportee_idx;
-        offset += read_u32(bytecode, offset, &exportee_idx);
+        u32 exportee_idx = bytecode->read_u32(offset);
 
-        (*exports)[i] = (Export){ .name = name, .type = type, .exportee_idx = exportee_idx };
+        Export export_ = { .name = name, .type = type, .exportee_idx = exportee_idx };
 
-        printf("read export: name '%s', type 0x%02x, exportee index %d\n", name, type, exportee_idx);
+        printf("read export: name '%s', type 0x%02x, exportee index %d\n", name.c_str(), type, exportee_idx);
     }
 
-    return exports_count;
+    return exports;
 }
 
-unsigned int find_function_body(Section *code_section, char *bytecode, unsigned int function_idx) {
-    unsigned int offset = code_section->offset;
 
-    unsigned int function_count = 0;
-    offset += read_u32(bytecode, offset, &function_count);
+u32 ModuleParser::find_function_body_offset(Section& code_section, u32 function_idx) {
+    u32 offset = code_section.offset;
+    u32 function_count = bytecode->read_u32(offset);
 
-    for(int i = 0; i < function_count; i++) {
+    for(u32 i = 0; i < function_count; i++) {
         printf("finding body size, offset is 0x%2x\n", offset);
-        unsigned int body_size = 0;
-        offset += read_u32(bytecode, offset, &body_size);
+        u32 body_size = bytecode->read_u32(offset);
 
         if (i == function_idx) {
             return offset;
         }
 
-        printf("read body size, offset is 0x%2x, body size is %d\n", offset, body_size);
         offset += body_size;
-        printf("added body size to offset, offset is 0x%2x\n", offset);
     }
 
     // TODO: throw error
@@ -115,113 +96,67 @@ unsigned int find_function_body(Section *code_section, char *bytecode, unsigned 
     return 0;
 }
 
-unsigned int read_types(Section *section, char *bytecode, Type **types) {
+std::vector<Type> ModuleParser::read_types(Section& section) {
     printf("reading types\n");
 
-    unsigned int offset = section->offset;
+    u32 offset = section.offset;
 
-    unsigned int types_len = 0;
-    offset += read_u32(bytecode, offset, &types_len);
+    u32 types_len = bytecode->read_u32(offset);
 
-    *types = malloc(sizeof(Type) * types_len);
+    std::vector<Type> types;
 
-    for(unsigned int type_idx = 0; type_idx < types_len; type_idx++) {
-        char type_code = bytecode[offset];
+    for(u32 type_idx = 0; type_idx < types_len; type_idx++) {
+        char type_code = bytecode->at(offset);
         if(type_code != TYPE_FUNCTION) {
             continue;
         }
 
-        unsigned int params_len = 0;
-        offset += read_u32(bytecode, offset, &params_len);
+        std::vector<char> params = bytecode->read_vector(&Bytecode::read_char, offset);
+        std::vector<char> results = bytecode->read_vector(&Bytecode::read_char, offset);
 
-        char *params = malloc(sizeof(char) * params_len);
-        for(unsigned int param_idx = 0; param_idx < params_len; param_idx++) {
-            params[param_idx] = bytecode[offset];
-        }
-
-        unsigned int results_len = 0;
-        offset += read_u32(bytecode, offset, &results_len);
-
-        char *results = malloc(sizeof(char) * results_len);
-        for(unsigned int result_idx = 0; result_idx < results_len; result_idx++) {
-            results[result_idx] = bytecode[offset];
-        }
-
-        Type type = (Type) { .params = params, .params_len = params_len, .results = results, .results_len = results_len };
-        (*types)[type_idx] = type;
+        Type type = { .params = params, .results = results };
+        types.push_back(type);
     }
 
-    return types_len;
+    return types;
 }
 
-unsigned int read_functions(Section *sections, int sections_len, char *bytecode, Function **functions) {
+std::vector<Function> ModuleParser::read_functions(std::vector<Section>& sections) {
     printf("reading functions\n");
 
-    Section *functions_section = NULL;
-    Section *code_section = NULL;
+    Section* functions_section = find_section_by_id(SECTION_ID_FUNCTIONS);
+    Section* code_section = find_section_by_id(SECTION_ID_CODE);
 
-    for(int i = 0; i < sections_len; i++) {
-        Section *section = &sections[i];
+    u32 offset = functions_section->offset;
 
-        if(section->id == SECTION_ID_FUNCTIONS) {
-            functions_section = section;
-        } else if (section->id == SECTION_ID_CODE) {
-            code_section = section;
-        }
-    }
-
-    if(functions_section == NULL || code_section == NULL) {
-        // TODO: throw error
-    }
-
-
-    unsigned int offset = functions_section->offset;
-
-    unsigned int functions_count = 0;
-    offset += read_u32(bytecode, offset, &functions_count);
-
+    u32 functions_count = bytecode->read_u32(offset);
     printf("%d functions found\n", functions_count);
 
-    *functions = (Function*)malloc(sizeof(Function) * functions_count);
+    std::vector<Function> functions;
 
-    for(unsigned int function_idx = 0; function_idx < functions_count; function_idx++) {
-        unsigned int type_idx;
-        offset += read_u32(bytecode, offset, &type_idx);
+    for(u32 function_idx = 0; function_idx < functions_count; function_idx++) {
+        u32 type_idx = bytecode->read_u32(offset);
+        u32 function_body_offset = find_function_body_offset(*code_section, function_idx);
 
-        (*functions)[function_idx].type_idx = type_idx;
-        (*functions)[function_idx].offset = find_function_body(code_section, bytecode, function_idx);
+        Function function = {.offset = function_body_offset, .type_idx = type_idx};
 
-        printf("read function: type idx %d, offset 0x%2x\n", type_idx, (*functions)[function_idx].offset);
+        printf("read function: type idx %d, offset 0x%2x\n", type_idx, function_body_offset);
     }
 
-    return functions_count;
+    return functions;
 }
 
-Module* read_module(char *bytecode, unsigned int bytecode_len) {
-    Module* module = (Module*)malloc(sizeof(Module));
-    module->bytecode = bytecode;
-    module->bytecode_len = bytecode_len;
+Section *ModuleParser::find_section_by_id(std::vector<Section>& sections, char id) {
+    auto it = find_if(
+        sections.begin(),
+        sections.end(),
+        [](const Section& section) { return section.id == SECTION_ID_FUNCTIONS; }
+    );
 
-    Section* sections;
-    unsigned short sections_len = read_sections(bytecode, bytecode_len, &sections);
-
-
-    for(int i = 0; i < sections_len; i++) {
-        Section section = sections[i];
-
-        printf("reading section %d of id %d\n", i, section.id);
-
-        if(section.id == SECTION_ID_EXPORTS) {
-            module->exports_len = read_exports(&section, bytecode, &module->exports);
-        } else if(section.id == SECTION_ID_FUNCTIONS) {
-            module->functions_len = read_functions(sections, sections_len, bytecode, &module->functions);
-        } else if(section.id == SECTION_ID_TYPES) {
-            module->types_len = read_types(&section, bytecode, &module->types);
-        }
+    if(it == sections.end()) {
+        // TODO: throw error instead
+        return nullptr;
+    } else {
+        return it.base();
     }
-
-    free(sections);
-
-    return module;
 }
-*/

@@ -20,27 +20,24 @@ typedef struct {
     unsigned int type_idx;
 } Function;
 
-typedef struct {
-    char* name;
+struct Export {
+    std::string name;
     // Type of the export
     char type;
     // Idx of function, table, mem or global based on type
     unsigned int exportee_idx;
-} Export;
+};
 
-typedef struct {
-    char *params;
-    unsigned int params_len;
-
-    char *results;
-    unsigned int results_len;
-} Type;
+struct Type {
+    std::vector<char> params;
+    std::vector<char> results;
+};
 
 typedef struct {
     std::vector<Function> functions;
     std::vector<Export> exports;
     std::vector<Type> types;
-    std::unique_ptr<Bytecode> bytecode;
+    std::shared_ptr<Bytecode> bytecode;
 } Module;
 
 
