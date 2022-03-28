@@ -3,9 +3,7 @@
 #include "stdlib.h"
 #include "stdio.h"
 #include <string.h>
-
 #include <utility>
-#include "common.h"
 
 #define SECTION_ID_EXPORTS 7
 #define SECTION_ID_FUNCTIONS 3
@@ -40,7 +38,9 @@ u32 Bytecode::read_u32(u32& offset) {
 std::string Bytecode::read_string(u32 &offset) {
     unsigned int len = read_u32(offset);
 
-    auto str = std::string(bytecode.begin() + offset - 1, bytecode.begin() + offset + len - 1);
+    printf("string len: %d\n", len);
+
+    auto str = std::string(bytecode.begin() + offset, bytecode.begin() + offset + len);
 
     offset += len;
 
@@ -53,18 +53,6 @@ unsigned long Bytecode::size() {
 
 char Bytecode::at(unsigned int offset) {
     return bytecode[offset];
-}
-
-template<typename T>
-std::vector<T> Bytecode::read_vector(T (Bytecode::* reader)(u32 &), u32& offset) {
-    std::vector<T> out;
-
-    u32 len = read_u32(offset);
-    for(u32 i = 0; i < len; i++) {
-        out.push_back(reader(offset));
-    }
-
-    return out;
 }
 
 char Bytecode::read_char(u32& offset) {

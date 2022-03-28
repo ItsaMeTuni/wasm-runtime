@@ -15,6 +15,7 @@
 class ModuleParser {
     std::shared_ptr<Bytecode> bytecode;
 
+public:
     explicit ModuleParser(std::shared_ptr<Bytecode> bytecode) : bytecode(bytecode) { }
 
     Module parse();

@@ -23,13 +23,20 @@ public:
     char read_char(u32& offset);
     u32 read_u32(u32& offset);
     std::string read_string(u32& offset);
-    template<typename T> std::vector<T> read_vector(T (Bytecode::* reader)(u32& offset), u32& offset);
+
+    template<typename T> std::vector<T> read_vector(T (Bytecode::* reader)(u32& offset), u32& offset) {
+        std::vector<T> out;
+
+        u32 len = read_u32(offset);
+        for(u32 i = 0; i < len; i++) {
+            out.push_back((this->*reader)(offset));
+        }
+
+        return out;
+    };
 
     unsigned long size();
     char at(unsigned int offset);
 };
-
-Module* read_module(char *bytecode, unsigned int bytecode_len);
-unsigned int read_u32(char *bytecode, unsigned int offset, unsigned int* out);
 
 #endif

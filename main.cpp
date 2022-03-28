@@ -1,55 +1,35 @@
-#include <stdlib.h>
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <stdio.h>
+#include <fstream>
+#include <iterator>
+#include <filesystem>
 
 #include "bytecode.h"
-#include "runtime.h"
+//#include "runtime.h"
+#include "Module.h"
+#include "ModuleParser.h"
+
+std::vector<char> read_file(std::string path) {
+    std::vector<char> bytes;
+
+    std::ifstream file(path, std::ios::binary);
+
+    file.seekg(0, std::ios::end);
+    long len = file.tellg();
+    bytes.resize(len);
+
+    file.seekg(0, std::ios::beg);
+    file.read(&bytes.front(), len);
+
+    return bytes;
+}
 
 int main() {
-   
-    int fd = open("code.wasm", O_RDONLY);
-    int len = lseek(fd, 0, SEEK_END);
-    char *data = (char*)mmap(NULL, len, PROT_READ, MAP_PRIVATE, fd, 0);
-    
-    printf("successfully read file\n");
+    auto bytes = read_file(std::filesystem::current_path().append("code.wasm"));
 
-    //Section* sections;
-    //unsigned short section_count = read_sections(data, len, &sections);
-   
-    printf("dump:\n");
-    for(int i = 0; i < len; i++) {
-        printf("%02x ", data[i]);
-    }
-    printf("\n");
+    std::shared_ptr<Bytecode> bytecode = std::make_shared<Bytecode>(bytes);
+    ModuleParser moduleParser(bytecode);
+    Module module = moduleParser.parse();
+//    Store store = make_store(module);
 
-    Module* module = read_module(data, len);
-    Store store = make_store(module);
-
-    printf("a\n");
-
-
-
-    invoke(&store, 0);
-
-    printf("hello\n");
-
-    for(int i = 0; i < 8; i++) {
-        step(&store);
-    }
-
-    print_stack(&store);
-
-    //printf("module:\n");
-
-    //printf("sections:\n");
-    //for(int i = 0; i < section_count; i++) {
-    //    printf("id: %x, offset: %x, length: %x\n", sections[i].id, sections[i].offset, sections[i].length);
-    //}
-
-    //printf("\n");
 
     return 0;
 }

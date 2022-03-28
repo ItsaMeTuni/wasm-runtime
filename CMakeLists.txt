@@ -8,7 +8,10 @@ include_directories(.)
 add_executable(wasm_runtime
         bytecode.cpp
         bytecode.h
-        common.h
         main.cpp
-        runtime.c
-        runtime.h ModuleParser.cpp ModuleParser.h Module.h)
+#        runtime.c
+#        runtime.h
+        ModuleParser.cpp
+        ModuleParser.h
+        Module.h
+    )

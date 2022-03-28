@@ -36,8 +36,7 @@ std::vector<Section> ModuleParser::read_sections() {
     std::vector<Section> sections;
 
     while(offset < bytecode->size()) {
-        char section_id = bytecode[offset];
-        offset++;
+        char section_id = bytecode->read_char(offset);
 
         u32 section_size = bytecode->read_u32(offset);
 
@@ -60,7 +59,10 @@ std::vector<Export> ModuleParser::read_exports(Section& section) {
     std::vector<Export> exports;
 
     for(u32 i = 0; i < exports_count; i++) {
+        printf("offset before reading string: %d\n", offset);
         std::string name = bytecode->read_string(offset);
+
+        printf("offset after reading string: %d\n", offset);
 
         char type = bytecode->at(offset);
         offset++;
@@ -124,8 +126,8 @@ std::vector<Type> ModuleParser::read_types(Section& section) {
 std::vector<Function> ModuleParser::read_functions(std::vector<Section>& sections) {
     printf("reading functions\n");
 
-    Section* functions_section = find_section_by_id(SECTION_ID_FUNCTIONS);
-    Section* code_section = find_section_by_id(SECTION_ID_CODE);
+    Section* functions_section = find_section_by_id(sections, SECTION_ID_FUNCTIONS);
+    Section* code_section = find_section_by_id(sections, SECTION_ID_CODE);
 
     u32 offset = functions_section->offset;
 

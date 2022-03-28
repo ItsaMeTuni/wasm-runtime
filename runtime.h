@@ -1,6 +1,11 @@
 #ifndef _RUNTIME_H
 #define _RUNTIME_H
+
+#include <memory>
+#include <stack>
+
 #include "bytecode.h"
+#include "Module.h"
 
 #define INSTRUCTION_NOP 0x0
 #define INSTRUCTION_CONST_I32 0x41
@@ -45,14 +50,11 @@ typedef struct {
     } item;
 } Item;
 
-typedef struct {
-    Item* stack;
-    unsigned int stack_len;
-
-    Frame *current_frame;
-
-    Module *module;
-} Store;
+struct Store {
+    std::stack<Item> stack;
+    std::unique_ptr<Frame> current_frame;
+    std::shared_ptr<Module> module;
+};
 
 void step(Store *store);
 Store make_store(Module *module);
