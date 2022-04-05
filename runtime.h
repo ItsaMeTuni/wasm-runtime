@@ -50,10 +50,21 @@ typedef struct {
     } item;
 } Item;
 
-struct Store {
-    std::stack<Item> stack;
-    std::unique_ptr<Frame> current_frame;
+class Store {
+    std::vector<Item> stack;
+    Frame* current_frame;
     std::shared_ptr<Module> module;
+
+public:
+
+    Store(Module *module) : module(module) {};
+
+    void stack_push(Item item);
+    Item stack_pop();
+    void step();
+    void invoke(unsigned int function_idx);
+    void print_stack(Store *Store);
+    void print_item(Item *item);
 };
 
 void step(Store *store);
