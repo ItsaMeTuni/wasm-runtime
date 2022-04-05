@@ -1,8 +1,7 @@
 #include "runtime.h"
 #include "bytecode.h"
-#include "stdlib.h"
-#include "stdio.h"
-#include <string.h>
+#include <cstdlib>
+#include <cstdio>
 
 Item Store::stack_pop() {
     Item item = stack.back();
@@ -27,26 +26,25 @@ void Store::step() {
 
     } else if (instr == INSTRUCTION_CONST_I32) {
         // The const value is a u32 following the const.i32 instruction
-        unsigned int u32_value = module->bytecode->read_u32(offset);
+        u32 u32_value = module->bytecode->read_u32(offset);
         
         // Push the u32 to the stack
-        stack_push((Item) { .type = ITEM_TYPE_VALUE, .item = (Value) { .type = VALUE_TYPE_I32, .value = u32_value } });
-
+        stack_push(Item(Value(u32_value)));
     } else if (instr == INSTRUCTION_LOCAL_GET) {
         // The local's index is a u32 following the local.get instruction
-            unsigned int local_idx = module->bytecode->read_u32(offset);
+        unsigned int local_idx = module->bytecode->read_u32(offset);
 
         // Get the local from the current frame by it's index
         Value *local = &current_frame->locals[local_idx];
 
         // push local to stack
-        stack_push((Item) { .type = ITEM_TYPE_VALUE, .item = { .value = *local } });
+        stack_push(Item(*local));
     } else if (instr == INSTRUCTION_I32_ADD) {
-        unsigned int a = stack_pop().item.value.value.i32;
-        unsigned int b = stack_pop().item.value.value.i32;
+        unsigned int a = std::get<u32>(std::get<Value>(stack_pop()));
+        unsigned int b = std::get<u32>(std::get<Value>(stack_pop()));
 
         unsigned int result = a + b;
-        Item result_item = (Item) { .type = ITEM_TYPE_VALUE, .item = (Value) { .type = VALUE_TYPE_I32, .value = { .i32 = result } } };
+        Item result_item = Item(Value(result));
 
         stack_push(result_item);
     } else if (instr == INSTRUCTION_CALL) {
@@ -58,11 +56,10 @@ void Store::step() {
 
 void Store::invoke(unsigned int function_idx) {
     Function *fn = &module->functions[function_idx];
-    Frame frame = (Frame) { .next_instr_offset = fn->offset };
-    Item item = (Item) { .type = ITEM_TYPE_FRAME, .item = { .frame = frame }};
+    Frame frame = { .next_instr_offset = fn->offset };
+    Item item = Item(frame);
 
     Type *fn_type = &module->types[fn->type_idx];
-
 
     // TODO: allocate space for locals
     frame.locals = (Value*) malloc(sizeof(Value) * fn_type->params.size());
@@ -70,29 +67,28 @@ void Store::invoke(unsigned int function_idx) {
 
     for(unsigned int param_idx = 0; param_idx < fn_type->params.size(); param_idx++) {
         printf("hat %d %ld\n", param_idx, fn_type->params.size());
-        frame.locals[param_idx] = stack_pop().item.value;
+        frame.locals[param_idx] = std::get<Value>(stack_pop());
     }
 
     stack_push(item);
 
     // This is BAD, if the vector reallocates we have an invalid pointer
-    current_frame = &stack.back().item.frame;
+    current_frame = &std::get<Frame>(stack.back());
     std::deque<Item> a;
 }
-
-void Store::print_item(Item *item) {
-    if(item->type == ITEM_TYPE_FRAME) {
-        printf("Frame\n");
-    } else if (item->type == ITEM_TYPE_LABEL) {
-        printf("Label\n");
-    } else if (item->type == ITEM_TYPE_VALUE) {
-        printf("Value %d\n", item->item.value.value.i32);
-    }
+template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+void Store::print_item(Item &item) {
+    std::visit(overloaded {
+            [](Frame frame) { printf("Frame\n"); },
+            [](Label label) { printf("Label\n"); },
+            [](Value value) { printf("Value %d\n", std::get<u32>(value)); }
+    }, item);
 }
 
-void Store::print_stack(Store *store) {
+void Store::print_stack() {
     printf("Stack: (%ld)\n", stack.size());
     for(unsigned long i = stack.size(); i >= 0; i--) {
-        Store::print_item(&stack[i]);
+        Store::print_item(stack[i]);
     }
 }

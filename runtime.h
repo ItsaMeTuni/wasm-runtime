@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <stack>
+#include <variant>
 
 #include "bytecode.h"
 #include "Module.h"
@@ -21,13 +22,14 @@
 #define VALUE_TYPE_I32 0
 #define VALUE_TYPE_I64 1
 
-typedef struct {
-    short type;
-    union {
-        unsigned int i32;
-        unsigned long i64;
-    } value;
-} Value;
+typedef std::variant<u32, u64> Value;
+//typedef struct {
+//    short type;
+//    union {
+//        unsigned int i32;
+//        unsigned long i64;
+//    } value;
+//} Value;
 
 typedef struct {
     unsigned int arity;
@@ -41,14 +43,16 @@ typedef struct {
     unsigned int next_instr_offset;
 } Frame;
 
-typedef struct {
-    char type;
-    union {
-        Value value;
-        Label label;
-        Frame frame;
-    } item;
-} Item;
+typedef std::variant<Value, Label, Frame> Item;
+
+//typedef struct {
+//    char type;
+//    union {
+//        Value value;
+//        Label label;
+//        Frame frame;
+//    } item;
+//} Item;
 
 class Store {
     std::vector<Item> stack;
@@ -63,8 +67,8 @@ public:
     Item stack_pop();
     void step();
     void invoke(unsigned int function_idx);
-    void print_stack(Store *Store);
-    void print_item(Item *item);
+    void print_stack();
+    static void print_item(Item &item);
 };
 
 void step(Store *store);

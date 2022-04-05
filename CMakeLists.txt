@@ -9,8 +9,8 @@ add_executable(wasm_runtime
         bytecode.cpp
         bytecode.h
         main.cpp
-#        runtime.c
-#        runtime.h
+        runtime.cpp
+        runtime.h
         ModuleParser.cpp
         ModuleParser.h
         Module.h

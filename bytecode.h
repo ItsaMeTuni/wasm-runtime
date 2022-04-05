@@ -11,8 +11,7 @@
 #define TYPE_FUNCTION 0x60
 
 typedef unsigned int u32;
-
-
+typedef unsigned long u64;
 
 class Bytecode {
     std::vector<char> bytecode;

@@ -6,6 +6,7 @@
 //#include "runtime.h"
 #include "Module.h"
 #include "ModuleParser.h"
+#include "runtime.h"
 
 std::vector<char> read_file(std::string path) {
     std::vector<char> bytes;
@@ -28,8 +29,7 @@ int main() {
     std::shared_ptr<Bytecode> bytecode = std::make_shared<Bytecode>(bytes);
     ModuleParser moduleParser(bytecode);
     Module module = moduleParser.parse();
-//    Store store = make_store(module);
-
+    Store store = Store(&module);
 
     return 0;
 }
