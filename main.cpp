@@ -1,6 +1,7 @@
 #include <fstream>
 #include <iterator>
 #include <filesystem>
+#include <iostream>
 
 #include "bytecode.h"
 //#include "runtime.h"
@@ -28,8 +29,17 @@ int main() {
 
     std::shared_ptr<Bytecode> bytecode = std::make_shared<Bytecode>(bytes);
     ModuleParser moduleParser(bytecode);
-    Module module = moduleParser.parse();
-    Store store = Store(&module);
+    std::shared_ptr<Module> module = moduleParser.parse();
+    std::cout << module->to_string() << std::endl;
+    Store store = Store(module);
+    store.invoke(0);
+    store.step();
+    store.step();
+    store.step();
+    store.step();
+    store.step();
+    store.step();
 
+    store.print_stack();
     return 0;
 }

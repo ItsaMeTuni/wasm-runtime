@@ -4,24 +4,25 @@
 
 #include "ModuleParser.h"
 #include <algorithm>
+#include <memory>
 
-Module ModuleParser::parse() {
-    Module module = Module();
-    module.bytecode = bytecode;
+std::shared_ptr<Module> ModuleParser::parse() {
+    std::shared_ptr<Module> module = std::make_shared<Module>();
+    module->bytecode = bytecode;
 
     std::vector<Section> sections = read_sections();
 
     for(int i = 0; i < sections.size(); i++) {
         Section& section = sections.at(i);
 
-        printf("reading section %d of id %d\n", i, section.id);
+        printf("processing section, idx: %d, id: %d\n", i, section.id);
 
         if(section.id == SECTION_ID_EXPORTS) {
-            module.exports = read_exports(section);
+            module->exports = read_exports(section);
         } else if(section.id == SECTION_ID_FUNCTIONS) {
-            module.functions = read_functions(sections);
+            module->functions = read_functions(sections);
         } else if(section.id == SECTION_ID_TYPES) {
-            module.types = read_types(section);
+            module->types = read_types(section);
         }
     }
 
@@ -39,6 +40,7 @@ std::vector<Section> ModuleParser::read_sections() {
         char section_id = bytecode->read_char(offset);
 
         u32 section_size = bytecode->read_u32(offset);
+        printf("detected section of id %d, offset: 0x%02x, len: %d\n", section_id, offset, section_size);
 
         Section section = { .id = section_id, .offset = offset, .length = section_size };
         sections.push_back(section);
@@ -64,15 +66,16 @@ std::vector<Export> ModuleParser::read_exports(Section& section) {
 
         printf("offset after reading string: %d\n", offset);
 
-        char type = bytecode->at(offset);
-        offset++;
-
+        char type = bytecode->read_char(offset);
         u32 exportee_idx = bytecode->read_u32(offset);
 
         Export export_ = { .name = name, .type = type, .exportee_idx = exportee_idx };
+        exports.push_back(export_);
 
         printf("read export: name '%s', type 0x%02x, exportee index %d\n", name.c_str(), type, exportee_idx);
     }
+
+    printf("exports len is %ld\n", exports.size());
 
     return exports;
 }
@@ -81,6 +84,7 @@ std::vector<Export> ModuleParser::read_exports(Section& section) {
 u32 ModuleParser::find_function_body_offset(Section& code_section, u32 function_idx) {
     u32 offset = code_section.offset;
     u32 function_count = bytecode->read_u32(offset);
+    printf("code section offset 0x%02x, function count %d\n", offset, function_count);
 
     for(u32 i = 0; i < function_count; i++) {
         printf("finding body size, offset is 0x%2x\n", offset);
@@ -108,12 +112,13 @@ std::vector<Type> ModuleParser::read_types(Section& section) {
     std::vector<Type> types;
 
     for(u32 type_idx = 0; type_idx < types_len; type_idx++) {
-        char type_code = bytecode->at(offset);
+        char type_code = bytecode->read_char(offset);
         if(type_code != TYPE_FUNCTION) {
             continue;
         }
 
         std::vector<char> params = bytecode->read_vector(&Bytecode::read_char, offset);
+        printf("params len %ld\n", params.size());
         std::vector<char> results = bytecode->read_vector(&Bytecode::read_char, offset);
 
         Type type = { .params = params, .results = results };
@@ -138,9 +143,13 @@ std::vector<Function> ModuleParser::read_functions(std::vector<Section>& section
 
     for(u32 function_idx = 0; function_idx < functions_count; function_idx++) {
         u32 type_idx = bytecode->read_u32(offset);
-        u32 function_body_offset = find_function_body_offset(*code_section, function_idx);
+ 
+        // + 1 to ignore local decl count
+        // TODO: fix this
+        u32 function_body_offset = find_function_body_offset(*code_section, function_idx) + 1;
 
         Function function = {.offset = function_body_offset, .type_idx = type_idx};
+        functions.push_back(function);
 
         printf("read function: type idx %d, offset 0x%2x\n", type_idx, function_body_offset);
     }
@@ -152,7 +161,7 @@ Section *ModuleParser::find_section_by_id(std::vector<Section>& sections, char i
     auto it = find_if(
         sections.begin(),
         sections.end(),
-        [](const Section& section) { return section.id == SECTION_ID_FUNCTIONS; }
+        [id](const Section& section) { return section.id == id; }
     );
 
     if(it == sections.end()) {
@@ -162,3 +171,4 @@ Section *ModuleParser::find_section_by_id(std::vector<Section>& sections, char i
         return it.base();
     }
 }
+

@@ -11,13 +11,13 @@
 
 typedef struct {
     char id;
-    unsigned int offset;
-    unsigned int length;
+    u32 offset;
+    u32 length;
 } Section;
 
 typedef struct {
-    unsigned int offset;
-    unsigned int type_idx;
+    u32 offset;
+    u32 type_idx;
 } Function;
 
 struct Export {
@@ -33,12 +33,17 @@ struct Type {
     std::vector<char> results;
 };
 
-typedef struct {
+struct Module {
     std::vector<Function> functions;
     std::vector<Export> exports;
     std::vector<Type> types;
     std::shared_ptr<Bytecode> bytecode;
-} Module;
+
+    std::string to_string();    
+    std::string functions_as_strings();
+    std::string exports_as_strings();
+    std::string types_as_strings();
+};
 
 
 #endif //WASM_RUNTIME_MODULE_H

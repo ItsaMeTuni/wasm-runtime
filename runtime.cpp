@@ -16,10 +16,9 @@ void Store::stack_push(Item item) {
 void Store::step() {
     unsigned int &offset = current_frame->next_instr_offset;
 
-    char instr = module->bytecode->at(offset);
-    offset++;
+    char instr = module->bytecode->read_char(offset);
 
-    printf("processing instruction 0x%02x (offset 0x%02x)\n", instr, offset);
+    printf("processing instruction 0x%02x (offset 0x%02x)\n", instr, offset - 1);
 
     if(instr == INSTRUCTION_NOP) {
         return;
@@ -55,27 +54,27 @@ void Store::step() {
 }
 
 void Store::invoke(unsigned int function_idx) {
-    Function *fn = &module->functions[function_idx];
-    Frame frame = { .next_instr_offset = fn->offset };
+    Function &fn = module->functions.at(function_idx);
+    Frame frame = { .next_instr_offset = fn.offset };
     Item item = Item(frame);
 
-    Type *fn_type = &module->types[fn->type_idx];
+    Type &fn_type = module->types.at(fn.type_idx);
+    
+    // TODO: add locals to locals array
+    for(unsigned int param_idx = 0; param_idx < fn_type.params.size(); param_idx++) {
+        auto param = std::get<Value>(stack_pop());
+        frame.locals.push_back(param);
 
-    // TODO: allocate space for locals
-    frame.locals = (Value*) malloc(sizeof(Value) * fn_type->params.size());
-    printf("hat\n");
-
-    for(unsigned int param_idx = 0; param_idx < fn_type->params.size(); param_idx++) {
-        printf("hat %d %ld\n", param_idx, fn_type->params.size());
-        frame.locals[param_idx] = std::get<Value>(stack_pop());
     }
 
     stack_push(item);
 
     // This is BAD, if the vector reallocates we have an invalid pointer
+    // TODO: deal with this
     current_frame = &std::get<Frame>(stack.back());
     std::deque<Item> a;
 }
+
 template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 void Store::print_item(Item &item) {
@@ -88,7 +87,8 @@ void Store::print_item(Item &item) {
 
 void Store::print_stack() {
     printf("Stack: (%ld)\n", stack.size());
-    for(unsigned long i = stack.size(); i >= 0; i--) {
+    for(long i = stack.size() - 1; i >= 0; i--) {
+        printf("printing stack item %ld, stack size %ld\n", i, stack.size());
         Store::print_item(stack[i]);
     }
 }

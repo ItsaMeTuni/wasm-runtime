@@ -14,4 +14,5 @@ add_executable(wasm_runtime
         ModuleParser.cpp
         ModuleParser.h
         Module.h
+        Module.cpp
     )

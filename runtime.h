@@ -37,8 +37,7 @@ typedef struct {
 } Label;
 
 typedef struct {
-    Value *locals;
-    unsigned int locals_len;
+    std::vector<Value> locals;
     unsigned int function_arity;
     unsigned int next_instr_offset;
 } Frame;
@@ -61,7 +60,7 @@ class Store {
 
 public:
 
-    Store(Module *module) : module(module) {};
+    Store(std::shared_ptr<Module> module) : module(module) {};
 
     void stack_push(Item item);
     Item stack_pop();
