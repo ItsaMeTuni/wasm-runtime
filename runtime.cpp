@@ -14,11 +14,12 @@ void Store::stack_push(Item item) {
 }
 
 void Store::step() {
-    unsigned int &offset = current_frame->next_instr_offset;
+    unsigned int &offset = get_current_frame().next_instr_offset;
 
     char instr = module->bytecode->read_char(offset);
 
     printf("processing instruction 0x%02x (offset 0x%02x)\n", instr, offset - 1);
+    printf("current frame: local count: %ld\n", get_current_frame().locals.size());
 
     if(instr == INSTRUCTION_NOP) {
         return;
@@ -34,10 +35,10 @@ void Store::step() {
         unsigned int local_idx = module->bytecode->read_u32(offset);
 
         // Get the local from the current frame by it's index
-        Value *local = &current_frame->locals[local_idx];
+        Value local = get_current_frame().locals.at(local_idx);
 
         // push local to stack
-        stack_push(Item(*local));
+        stack_push(Item(local));
     } else if (instr == INSTRUCTION_I32_ADD) {
         unsigned int a = std::get<u32>(std::get<Value>(stack_pop()));
         unsigned int b = std::get<u32>(std::get<Value>(stack_pop()));
@@ -56,7 +57,6 @@ void Store::step() {
 void Store::invoke(unsigned int function_idx) {
     Function &fn = module->functions.at(function_idx);
     Frame frame = { .next_instr_offset = fn.offset };
-    Item item = Item(frame);
 
     Type &fn_type = module->types.at(fn.type_idx);
     
@@ -64,15 +64,19 @@ void Store::invoke(unsigned int function_idx) {
     for(unsigned int param_idx = 0; param_idx < fn_type.params.size(); param_idx++) {
         auto param = std::get<Value>(stack_pop());
         frame.locals.push_back(param);
-
     }
 
+    Item item = Item(frame);
     stack_push(item);
 
     // This is BAD, if the vector reallocates we have an invalid pointer
     // TODO: deal with this
-    current_frame = &std::get<Frame>(stack.back());
+    current_frame_item_idx = stack.size() - 1;
     std::deque<Item> a;
+}
+
+Frame &Store::get_current_frame() {
+    return std::get<Frame>(stack.at(current_frame_item_idx));
 }
 
 template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
@@ -88,7 +92,6 @@ void Store::print_item(Item &item) {
 void Store::print_stack() {
     printf("Stack: (%ld)\n", stack.size());
     for(long i = stack.size() - 1; i >= 0; i--) {
-        printf("printing stack item %ld, stack size %ld\n", i, stack.size());
         Store::print_item(stack[i]);
     }
 }

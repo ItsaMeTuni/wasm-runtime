@@ -55,7 +55,7 @@ typedef std::variant<Value, Label, Frame> Item;
 
 class Store {
     std::vector<Item> stack;
-    Frame* current_frame;
+    u32 current_frame_item_idx;
     std::shared_ptr<Module> module;
 
 public:
@@ -66,6 +66,7 @@ public:
     Item stack_pop();
     void step();
     void invoke(unsigned int function_idx);
+    Frame &get_current_frame();
     void print_stack();
     static void print_item(Item &item);
 };
