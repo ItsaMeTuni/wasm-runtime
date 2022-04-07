@@ -51,6 +51,27 @@ void Store::step() {
         unsigned int function_idx = module->bytecode->read_u32(offset);
 
         invoke(function_idx);
+    } else if (instr == INSTRUCTION_END) {
+        auto arity = get_current_frame().function_arity;
+
+        // Move all the values on top of the stack to before the frame
+        for(auto i = 0; i < arity; i++) {
+            auto itPos = stack.begin() + current_frame_item_idx - 1;
+            stack.insert(itPos, stack_pop());
+        }
+
+        // pop the frame
+        stack_pop();
+
+        printf("stack size is %ld\n", stack.size());
+        for(long i = stack.size(); i >= 0; i--) {
+            printf("bruh %d\n", i);
+            if (std::holds_alternative<Frame>(stack.at(i))) {
+                printf("new current frame is at idx %ld\n", i);
+                current_frame_item_idx = i;
+                break;
+            }
+        }
     }
 }
 

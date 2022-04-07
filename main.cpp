@@ -39,6 +39,8 @@ int main() {
     store.step();
     store.step();
     store.step();
+    store.step();
+    store.step();
 
     store.print_stack();
     return 0;
