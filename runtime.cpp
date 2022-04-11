@@ -14,6 +14,10 @@ void Store::stack_push(Item item) {
 }
 
 void Store::step() {
+    if(!has_frame) {
+        return;
+    }
+
     unsigned int &offset = get_current_frame().next_instr_offset;
 
     char instr = module->bytecode->read_char(offset);
@@ -56,31 +60,40 @@ void Store::step() {
 
         // Move all the values on top of the stack to before the frame
         for(auto i = 0; i < arity; i++) {
-            auto itPos = stack.begin() + current_frame_item_idx - 1;
+            auto itPos = stack.begin() + current_frame_item_idx;
             stack.insert(itPos, stack_pop());
         }
 
         // pop the frame
         stack_pop();
+        
+        update_current_frame_data();
+    }
+}
 
-        printf("stack size is %ld\n", stack.size());
-        for(long i = stack.size(); i >= 0; i--) {
-            printf("bruh %d\n", i);
-            if (std::holds_alternative<Frame>(stack.at(i))) {
-                printf("new current frame is at idx %ld\n", i);
-                current_frame_item_idx = i;
-                break;
-            }
+void Store::clear_stack() {
+    stack.resize(0);
+    has_frame = false;
+}
+
+void Store::update_current_frame_data() {
+    has_frame = false;
+    for(long i = stack.size() - 1; i >= 0; i--) {
+        if (std::holds_alternative<Frame>(stack.at(i))) {
+            current_frame_item_idx = i;
+            has_frame = true;
+            break;
         }
     }
+
 }
 
 void Store::invoke(unsigned int function_idx) {
     Function &fn = module->functions.at(function_idx);
-    Frame frame = { .next_instr_offset = fn.offset };
-
     Type &fn_type = module->types.at(fn.type_idx);
-    
+
+    Frame frame = { .function_arity = (u32)fn_type.results.size(), .next_instr_offset = fn.offset };
+
     // TODO: add locals to locals array
     for(unsigned int param_idx = 0; param_idx < fn_type.params.size(); param_idx++) {
         auto param = std::get<Value>(stack_pop());
@@ -93,6 +106,7 @@ void Store::invoke(unsigned int function_idx) {
     // This is BAD, if the vector reallocates we have an invalid pointer
     // TODO: deal with this
     current_frame_item_idx = stack.size() - 1;
+    has_frame = true;
     std::deque<Item> a;
 }
 
